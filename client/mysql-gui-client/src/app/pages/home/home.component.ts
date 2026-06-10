@@ -71,6 +71,7 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
             prompt: 'Summarise orders by status',
         },
     ];
+    demoRows: any[] | null = null;
     private readonly destroy$ = new Subject<void>();
 
     currentPage: number = 1;
@@ -295,6 +296,17 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
 
         this.cdr.detectChanges();
         this.scrollTabIntoView(this.tabs.length - 1);
+    }
+
+    openFrontendUxDemo() {
+        this.demoRows = [
+            { id: 101, name: 'Alice Tan', email: 'alice@example.com', role: 'Admin', status: 'Active' },
+            { id: 102, name: 'Brian Lee', email: 'brian@example.com', role: 'Developer', status: 'Active' },
+            { id: 103, name: 'Chloe Lim', email: 'chloe@example.com', role: 'Analyst', status: 'Inactive' },
+            { id: 104, name: 'Daniel Wong', email: 'daniel@example.com', role: 'Developer', status: 'Active' },
+            { id: 105, name: 'Evelyn Goh', email: 'evelyn@example.com', role: 'Support', status: 'Inactive' },
+        ];
+        this.addTab('sample_db', 'users_demo');
     }
 
     selectTab(tabIndex: number) {

@@ -18,6 +18,7 @@ export class ResultGridComponent {
     @Input() executeTriggered: boolean = false;
     @Input() dbName: string = '';
     @Input() tabId: string = '';
+    @Input() demoRows: any[] | null = null;
 
     tabsData = new Map<string, any>();
     headers: string[] = [];
@@ -37,6 +38,13 @@ export class ResultGridComponent {
     constructor(private dbService: BackendService, private cdr: ChangeDetectorRef) {}
 
     ngOnChanges(changes: SimpleChanges) {
+        if (changes['demoRows'] && this.demoRows) {
+            this.setData(this.demoRows);
+            this.totalRows = this.demoRows.length;
+            this.totalPages = 1;
+            this.tabsData.set(this.tabId || 'frontend-ux-demo', [{ rows: this.demoRows, totalRows: this.demoRows.length }]);
+            return;
+        }
         if (changes['triggerQuery'] || changes['dbName'] || changes['tabId']) {
             if (this.dbName != '' && this.triggerQuery != '') {
                 this.currentPage = 1;

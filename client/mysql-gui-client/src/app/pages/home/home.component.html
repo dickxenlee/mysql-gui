@@ -97,6 +97,7 @@
                 [dbName]="selectedDB"
                 [tabId]="currentTabId"
                 [executeTriggered]="executeTriggered"
+                [demoRows]="demoRows"
             ></app-resultgrid>
         </div>
     </div>
@@ -104,6 +105,19 @@
 
 <ng-template #showInitDBInfo>
     <div class="flex h-full flex-col items-center justify-start bg-gray-100 p-4 dark:bg-gray-900">
+        <div class="mb-4 flex w-full items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100">
+            <div>
+                <p class="font-semibold">Frontend UX preview</p>
+                <p class="text-xs opacity-80">Open sample data to test filtering and query history without a MySQL backend.</p>
+            </div>
+            <button
+                type="button"
+                (click)="openFrontendUxDemo()"
+                class="rounded-md bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+                Preview UX features
+            </button>
+        </div>
         <table class="mb-4 min-w-full overflow-hidden rounded-lg border border-gray-400 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
             <thead class="bg-gray-300 dark:bg-gray-700">
                 <tr>
