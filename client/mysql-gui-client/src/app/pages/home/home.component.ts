@@ -14,8 +14,9 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { DbMeta, MultipleTablesInfo, newTabData, openAIEvent } from '@lib/utils/storage/storage.types';
+import { DbMeta, MultipleTablesInfo, newTabData, openAIEvent, QueryHistoryRecord } from '@lib/utils/storage/storage.types';
 import { ResultGridComponent } from '@pages/resultgrid/resultgrid.component';
+import { HistoryPanelComponent } from '@lib/components/history-panel/history-panel.component';
 import * as ace from 'ace-builds';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
@@ -25,7 +26,7 @@ import { BackendService } from '@lib/services';
 @Component({
     selector: 'app-home',
     standalone: true,
-    imports: [CommonModule, RouterModule, FormsModule, ResultGridComponent],
+    imports: [CommonModule, RouterModule, FormsModule, ResultGridComponent, HistoryPanelComponent],
     templateUrl: './home.component.html',
 })
 export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterViewChecked {
@@ -43,6 +44,29 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
     executeTriggered: boolean = false;
     selectedDB: string = '';
     currentTabId: string = '';
+    historyLoading = false;
+    historyError = '';
+    historyRecords: QueryHistoryRecord[] = [
+        {
+            id: 'demo-2',
+            query: 'SELECT id, email, created_at FROM users ORDER BY created_at DESC;',
+            database: 'sample_db',
+            timestamp: new Date(Date.now() - 120000).toISOString(),
+            status: 'success',
+            durationMs: 31,
+            source: 'manual',
+        },
+        {
+            id: 'demo-1',
+            query: 'SELECT status, COUNT(*) AS total FROM orders GROUP BY status;',
+            database: 'sample_db',
+            timestamp: new Date(Date.now() - 480000).toISOString(),
+            status: 'success',
+            durationMs: 54,
+            source: 'ai',
+            prompt: 'Summarise orders by status',
+        },
+    ];
 
     currentPage: number = 1;
     pageSize: number = 5;
@@ -324,6 +348,19 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
         this.tabContent[this.selectedTab] = '';
         this.triggerQuery = '';
         this.executeTriggered = false;
+    }
+
+    restoreHistoryQuery(query: string) {
+        if (this.selectedTab < 0) {
+            return;
+        }
+        this.tabContent[this.selectedTab] = query;
+        this.triggerQuery = query;
+        this.editorInstance?.setValue(query);
+    }
+
+    clearHistory() {
+        this.historyRecords = [];
     }
 
     convertToGB(sizeInBytes: number): string {

@@ -24,6 +24,17 @@ export interface openAIEvent {
     openAIEnabled: boolean;
 }
 
+export interface QueryHistoryRecord {
+    id: string;
+    query: string;
+    database: string;
+    timestamp: string;
+    status: 'success' | 'error';
+    durationMs: number;
+    source: 'manual' | 'ai';
+    prompt?: string;
+}
+
 export interface TableInfo {
     db_name: string;
     table_name: string;

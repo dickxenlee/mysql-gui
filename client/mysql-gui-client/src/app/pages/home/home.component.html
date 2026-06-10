@@ -36,8 +36,8 @@
 
             <!-- <div class="bg-gray-200 p-2 text-sm dark:bg-gray-800">Tools</div> -->
 
-            <div class="flex flex-col bg-gray-100 dark:bg-gray-900">
-                <div *ngIf="selectedTab !== -1">
+            <div class="flex bg-gray-100 dark:bg-gray-900">
+                <div *ngIf="selectedTab !== -1" class="min-w-0 flex-1">
                     <!-- <textarea
                         *ngIf="selectedTab !== -1"
                         #editor
@@ -80,6 +80,14 @@
                         </button>
                     </div>
                 </div>
+                <app-history-panel
+                    *ngIf="selectedTab !== -1"
+                    [records]="historyRecords"
+                    [loading]="historyLoading"
+                    [error]="historyError"
+                    (restoreQuery)="restoreHistoryQuery($event)"
+                    (clearHistory)="clearHistory()"
+                ></app-history-panel>
             </div>
         </div>
 
