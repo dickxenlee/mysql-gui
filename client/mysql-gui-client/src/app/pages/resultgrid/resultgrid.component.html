@@ -12,6 +12,23 @@
             <span class="ml-2 font-bold">{{ (rows | filterRows : appliedFilter).length }} / {{ rows.length }}</span>
         </div>
 
+        <button
+            (click)="exportCSV()"
+            [disabled]="rows.length === 0"
+            title="Export displayed rows as CSV"
+            class="rounded-lg bg-green-600 px-2 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+            Export CSV
+        </button>
+        <button
+            (click)="exportJSON()"
+            [disabled]="rows.length === 0"
+            title="Export displayed rows as JSON"
+            class="rounded-lg bg-blue-600 px-2 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+            Export JSON
+        </button>
+
         <div class="flex min-w-[220px] flex-1 items-center justify-center">
             <label class="relative w-full max-w-md">
                 <span class="sr-only">Filter current result rows</span>

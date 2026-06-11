@@ -165,4 +165,39 @@ export class ResultGridComponent {
         this.appliedFilter = '';
         this.cdr.markForCheck();
     }
+
+    // Export the currently displayed rows as a JSON file (client-side only).
+    exportJSON() {
+        if (this.rows.length === 0) return;
+        const content = JSON.stringify(this.rows, null, 2);
+        this.downloadFile(content, 'application/json', 'json');
+    }
+
+    // Export the currently displayed rows as a CSV file (client-side only).
+    exportCSV() {
+        if (this.rows.length === 0) return;
+        const headerLine = this.headers.map((h) => this.escapeCsv(h)).join(',');
+        const rowLines = this.rows.map((row) => this.headers.map((h) => this.escapeCsv(row[h])).join(','));
+        const content = [headerLine, ...rowLines].join('\r\n');
+        this.downloadFile(content, 'text/csv', 'csv');
+    }
+
+    // Quote a CSV value and escape embedded quotes so commas/quotes/newlines
+    // in the data cannot break the CSV structure (proposal Risk #4).
+    private escapeCsv(value: any): string {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        return `"${str.replace(/"/g, '""')}"`;
+    }
+
+    // Turn a string into a Blob and trigger a native browser download.
+    private downloadFile(content: string, mimeType: string, extension: string) {
+        const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `query-result-${Date.now()}.${extension}`;
+        link.click();
+        URL.revokeObjectURL(url);
+    }
 }
