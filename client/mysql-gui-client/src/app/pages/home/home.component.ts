@@ -384,7 +384,9 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
             return;
         }
         this.tabContent[this.selectedTab] = query;
-        this.triggerQuery = query;
+        if (!this.demoRows) {
+            this.triggerQuery = query;
+        }
         this.editorInstance?.setValue(query);
     }
 
