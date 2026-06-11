@@ -1,4 +1,7 @@
 const DBConnector = require("../config/dbConnector");
+const queryHistory = require("../store/queryHistory");
+
+const MAX_PAGE_SIZE = 1000;
 
 const getDatabases = async (req, res) => {
   try {
@@ -235,7 +238,11 @@ const getTables = async (req, res) => {
 
 const executeQuery = async (req, res) => {
   const dbName = req.params.dbName;
-  let { query, page = 1, pageSize = 10 } = req.body;
+  let { query, page = 1, pageSize = 10, source = "manual", prompt } = req.body;
+
+  pageSize = Math.min(Math.max(parseInt(pageSize, 10) || 10, 1), MAX_PAGE_SIZE);
+
+  const startTime = Date.now();
 
   try {
     // Connect to the specified database
@@ -337,10 +344,40 @@ const executeQuery = async (req, res) => {
       }
     }
 
+    try {
+      const affectedRows =
+        messages.reduce((sum, m) => sum + (m.affectedRows || 0), 0) || null;
+      queryHistory.addRecord({
+        database: dbName,
+        query,
+        status: "success",
+        affectedRows,
+        totalRows,
+        executionTimeMs: Date.now() - startTime,
+        source,
+        prompt,
+      });
+    } catch (historyErr) {
+      console.error("Failed to record query history:", historyErr);
+    }
+
     // Return results and messages
     res.status(200).json({ rows: result, totalRows, messages });
   } catch (err) {
     console.error("Error fetching queryInfo:", err);
+
+    try {
+      queryHistory.addRecord({
+        database: dbName,
+        query,
+        status: "error",
+        executionTimeMs: Date.now() - startTime,
+        source,
+        prompt,
+      });
+    } catch (historyErr) {
+      console.error("Failed to record query history:", historyErr);
+    }
 
     if (err.code === "ER_PARSE_ERROR" || err.sqlState === "42000") {
       res
