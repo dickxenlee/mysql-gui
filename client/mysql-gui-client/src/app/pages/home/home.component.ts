@@ -18,6 +18,7 @@ import { RouterModule } from '@angular/router';
 import { DbMeta, MultipleTablesInfo, newTabData, openAIEvent, QueryHistoryRecord } from '@lib/utils/storage/storage.types';
 import { ResultGridComponent } from '@pages/resultgrid/resultgrid.component';
 import { HistoryPanelComponent } from '@lib/components/history-panel/history-panel.component';
+import { mapHistoryRecord } from '@lib/components/history-panel/history-record.mapper';
 import * as ace from 'ace-builds';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
@@ -25,6 +26,7 @@ import 'ace-builds/src-noconflict/theme-monokai';
 import 'ace-builds/src-noconflict/ext-language_tools';
 import { BackendService } from '@lib/services';
 import { ThemeService } from '@lib/services/theme';
+import { HistoryService } from '@lib/services/history';
 import { Subject, takeUntil } from 'rxjs';
 
 @Component({
@@ -50,7 +52,8 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
     currentTabId: string = '';
     historyLoading = false;
     historyError = '';
-    historyRecords: QueryHistoryRecord[] = [
+    historyRecords: QueryHistoryRecord[] = [];
+    private readonly demoHistoryRecords: QueryHistoryRecord[] = [
         {
             id: 'demo-2',
             query: 'SELECT id, email, created_at FROM users ORDER BY created_at DESC;',
@@ -79,13 +82,19 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
     totalRows: number = 0;
     paginatedData: any[] = [];
 
-    constructor(private cdr: ChangeDetectorRef, private dbService: BackendService, private themeService: ThemeService) {}
+    constructor(
+        private cdr: ChangeDetectorRef,
+        private dbService: BackendService,
+        private themeService: ThemeService,
+        private historyService: HistoryService,
+    ) {}
 
     ngOnInit() {
         this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((theme) => {
             const activeTheme = theme === 'system' ? this.themeService.systemTheme : theme;
             this.editorInstance?.setTheme(activeTheme === 'dark' ? 'ace/theme/monokai' : 'ace/theme/github');
         });
+        this.loadHistory();
         if (this.InitDBInfo) {
             this.initializeData(this.InitDBInfo);
         }
@@ -299,6 +308,9 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
     }
 
     openFrontendUxDemo() {
+        this.historyRecords = [...this.demoHistoryRecords];
+        this.historyLoading = false;
+        this.historyError = '';
         this.demoRows = [
             { id: 101, name: 'Alice Tan', email: 'alice@example.com', role: 'Admin', status: 'Active' },
             { id: 102, name: 'Brian Lee', email: 'brian@example.com', role: 'Developer', status: 'Active' },
@@ -384,14 +396,57 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
             return;
         }
         this.tabContent[this.selectedTab] = query;
-        if (!this.demoRows) {
-            this.triggerQuery = query;
-        }
         this.editorInstance?.setValue(query);
     }
 
     clearHistory() {
-        this.historyRecords = [];
+        if (this.demoRows) {
+            this.historyRecords = [];
+            return;
+        }
+
+        this.historyLoading = true;
+        this.historyError = '';
+        this.historyService
+            .clearHistory()
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: () => {
+                    this.historyRecords = [];
+                    this.historyLoading = false;
+                    this.cdr.markForCheck();
+                },
+                error: () => {
+                    this.historyLoading = false;
+                    this.historyError = 'Unable to clear query history. Please try again.';
+                    this.cdr.markForCheck();
+                },
+            });
+    }
+
+    loadHistory() {
+        if (this.demoRows) {
+            return;
+        }
+
+        this.historyLoading = true;
+        this.historyError = '';
+        this.historyService
+            .getHistory()
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: ({ history }) => {
+                    this.historyRecords = (history ?? []).map(mapHistoryRecord);
+                    this.historyLoading = false;
+                    this.cdr.markForCheck();
+                },
+                error: () => {
+                    this.historyRecords = [];
+                    this.historyLoading = false;
+                    this.historyError = 'Query history is unavailable until the backend is running.';
+                    this.cdr.markForCheck();
+                },
+            });
     }
 
     convertToGB(sizeInBytes: number): string {

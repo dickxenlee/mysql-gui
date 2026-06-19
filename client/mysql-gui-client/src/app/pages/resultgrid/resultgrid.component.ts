@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, SimpleChanges } from '@angular/core';
+import {
+    ChangeDetectionStrategy,
+    ChangeDetectorRef,
+    Component,
+    EventEmitter,
+    Input,
+    Output,
+    SimpleChanges,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -14,6 +22,7 @@ import { FilterRowsPipe } from '@lib/providers/filter-rows.pipe';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ResultGridComponent {
+    @Output() queryCompleted = new EventEmitter<void>();
     @Input() triggerQuery: string = '';
     @Input() executeTriggered: boolean = false;
     @Input() dbName: string = '';
@@ -102,6 +111,7 @@ export class ResultGridComponent {
                     this.totalPages = 1;
                 }
                 this.isLoading = false;
+                this.queryCompleted.emit();
                 this.cdr.markForCheck();
             },
             (error) => {
@@ -110,6 +120,7 @@ export class ResultGridComponent {
                 this.isLoading = false;
                 this.rows = [];
                 this.headers = [];
+                this.queryCompleted.emit();
                 this.cdr.markForCheck();
             },
         );
