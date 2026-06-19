@@ -44,7 +44,12 @@
                 (input)="filterDatabases()"
             />
             <ng-template #loading>
-                <div>Loading...</div>
+                <div *ngIf="isLoading; else unavailable">Loading...</div>
+                <ng-template #unavailable>
+                    <div class="rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                        {{ loadError || 'No schemas available.' }}
+                    </div>
+                </ng-template>
             </ng-template>
         </div>
 

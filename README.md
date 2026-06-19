@@ -37,6 +37,12 @@
 - **Clipboard Copy**  
   Quickly copy cell data with a single click.
 
+- **Query History**  
+  Every executed query is recorded with its database, status, row count, and execution time, accessible through a dedicated History API and panel.
+
+- **Data Export (CSV/JSON)**  
+  Export the currently displayed result rows to a CSV or JSON file directly from the result grid, entirely on the client side.
+
 - **AI Integration**  
   Leverage OpenAI and Google Gemini for generating intelligent SQL queries. Talk to your selected Database
 
@@ -163,6 +169,59 @@ AI_API_KEY=<YOUR_API_KEY>
 ```bash
 SELECT Department, AVG(Salary) AS AvgSalary FROM employeerecords GROUP BY Department;
 ```
+
+## Query History & Export
+
+MySQL GUI records every executed query in an in-memory history store and exposes it through a REST API. Each record captures the database, the query text, status (success/error), affected/returned row count, execution time in milliseconds, and the source (`manual` or `ai`).
+
+> **Note:** The history store is held in server memory and is capped at the **100 most recent** queries. The oldest entry is dropped automatically when a new one is added, and the history is cleared when the server restarts.
+
+### History API
+
+| Method   | Endpoint              | Description                          |
+| -------- | --------------------- | ------------------------------------ |
+| `GET`    | `/api/mysql/history`  | Retrieve all recorded query records. |
+| `DELETE` | `/api/mysql/history`  | Clear all recorded query records.    |
+
+**Retrieve history:**
+
+```bash
+curl http://localhost:5000/api/mysql/history
+```
+
+```json
+{
+  "history": [
+    {
+      "id": "uuid-v4",
+      "timestamp": "2025-04-25T10:30:00.000Z",
+      "database": "mydb",
+      "query": "SELECT * FROM users WHERE id = 1",
+      "status": "success",
+      "affectedRows": null,
+      "totalRows": 42,
+      "executionTimeMs": 18,
+      "source": "manual"
+    }
+  ]
+}
+```
+
+Records are returned in reverse-chronological order (newest first).
+
+**Clear history:**
+
+```bash
+curl -X DELETE http://localhost:5000/api/mysql/history
+```
+
+```json
+{ "message": "Query history cleared successfully" }
+```
+
+### Exporting Results
+
+When a query returns rows, the result grid toolbar shows **Export CSV** and **Export JSON** buttons. Clicking either downloads the currently displayed rows as a file. Exporting runs entirely in the browser — no extra request is sent to the server. CSV values are safely quoted so commas, quotes, and line breaks in the data do not corrupt the file.
 
 ## Security Note
 

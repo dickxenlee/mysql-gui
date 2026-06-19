@@ -1,5 +1,6 @@
 const { getAIModel } = require("../models/model");
 const argv = require("minimist")(process.argv.slice(2));
+const queryHistory = require("../store/queryHistory");
 
 const initializeLLM = () => {
   const aiModel = argv.model || process.env.AI_MODEL || "GPT-4";
@@ -119,6 +120,7 @@ const generateMySQLQuery = async (dbMeta, databaseName, prompt, llm) => {
 };
 
 const executePrompt = async (req, res) => {
+  const startTime = Date.now();
   try {
     const { dbMeta, databaseName, prompt } = req.body;
 
@@ -132,6 +134,19 @@ const executePrompt = async (req, res) => {
 
     // Generate the SQL query
     const query = await generateMySQLQuery(dbMeta, databaseName, prompt, llm);
+
+    try {
+      queryHistory.addRecord({
+        database: databaseName,
+        query,
+        status: "generated",
+        executionTimeMs: Date.now() - startTime,
+        source: "ai",
+        prompt,
+      });
+    } catch (historyErr) {
+      console.error("Failed to record AI query history:", historyErr);
+    }
 
     res.status(200).json({ query });
   } catch (err) {

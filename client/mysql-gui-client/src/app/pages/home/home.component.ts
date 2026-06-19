@@ -15,8 +15,10 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { DbMeta, MultipleTablesInfo, newTabData, openAIEvent } from '@lib/utils/storage/storage.types';
+import { DbMeta, MultipleTablesInfo, newTabData, openAIEvent, QueryHistoryRecord } from '@lib/utils/storage/storage.types';
 import { ResultGridComponent } from '@pages/resultgrid/resultgrid.component';
+import { HistoryPanelComponent } from '@lib/components/history-panel/history-panel.component';
+import { mapHistoryRecord } from '@lib/components/history-panel/history-record.mapper';
 import * as ace from 'ace-builds';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
@@ -24,12 +26,13 @@ import 'ace-builds/src-noconflict/theme-monokai';
 import 'ace-builds/src-noconflict/ext-language_tools';
 import { BackendService } from '@lib/services';
 import { ThemeService } from '@lib/services/theme';
+import { HistoryService } from '@lib/services/history';
 import { Subject, takeUntil } from 'rxjs';
 
 @Component({
     selector: 'app-home',
     standalone: true,
-    imports: [CommonModule, RouterModule, FormsModule, ResultGridComponent],
+    imports: [CommonModule, RouterModule, FormsModule, ResultGridComponent, HistoryPanelComponent],
     templateUrl: './home.component.html',
 })
 export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterViewChecked, OnDestroy {
@@ -47,6 +50,31 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
     executeTriggered: boolean = false;
     selectedDB: string = '';
     currentTabId: string = '';
+    historyLoading = false;
+    historyError = '';
+    historyRecords: QueryHistoryRecord[] = [];
+    private readonly demoHistoryRecords: QueryHistoryRecord[] = [
+        {
+            id: 'demo-2',
+            query: 'SELECT id, email, created_at FROM users ORDER BY created_at DESC;',
+            database: 'sample_db',
+            timestamp: new Date(Date.now() - 120000).toISOString(),
+            status: 'success',
+            durationMs: 31,
+            source: 'manual',
+        },
+        {
+            id: 'demo-1',
+            query: 'SELECT status, COUNT(*) AS total FROM orders GROUP BY status;',
+            database: 'sample_db',
+            timestamp: new Date(Date.now() - 480000).toISOString(),
+            status: 'success',
+            durationMs: 54,
+            source: 'ai',
+            prompt: 'Summarise orders by status',
+        },
+    ];
+    demoRows: any[] | null = null;
     private readonly destroy$ = new Subject<void>();
 
     currentPage: number = 1;
@@ -54,13 +82,19 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
     totalRows: number = 0;
     paginatedData: any[] = [];
 
-    constructor(private cdr: ChangeDetectorRef, private dbService: BackendService, private themeService: ThemeService) {}
+    constructor(
+        private cdr: ChangeDetectorRef,
+        private dbService: BackendService,
+        private themeService: ThemeService,
+        private historyService: HistoryService,
+    ) {}
 
     ngOnInit() {
         this.themeService.currentTheme$.pipe(takeUntil(this.destroy$)).subscribe((theme) => {
             const activeTheme = theme === 'system' ? this.themeService.systemTheme : theme;
             this.editorInstance?.setTheme(activeTheme === 'dark' ? 'ace/theme/monokai' : 'ace/theme/github');
         });
+        this.loadHistory();
         if (this.InitDBInfo) {
             this.initializeData(this.InitDBInfo);
         }
@@ -273,6 +307,20 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
         this.scrollTabIntoView(this.tabs.length - 1);
     }
 
+    openFrontendUxDemo() {
+        this.historyRecords = [...this.demoHistoryRecords];
+        this.historyLoading = false;
+        this.historyError = '';
+        this.demoRows = [
+            { id: 101, name: 'Alice Tan', email: 'alice@example.com', role: 'Admin', status: 'Active' },
+            { id: 102, name: 'Brian Lee', email: 'brian@example.com', role: 'Developer', status: 'Active' },
+            { id: 103, name: 'Chloe Lim', email: 'chloe@example.com', role: 'Analyst', status: 'Inactive' },
+            { id: 104, name: 'Daniel Wong', email: 'daniel@example.com', role: 'Developer', status: 'Active' },
+            { id: 105, name: 'Evelyn Goh', email: 'evelyn@example.com', role: 'Support', status: 'Inactive' },
+        ];
+        this.addTab('sample_db', 'users_demo');
+    }
+
     selectTab(tabIndex: number) {
         if (!this.tabContent[tabIndex]) {
             this.tabContent[tabIndex] = '';
@@ -341,6 +389,64 @@ export class HomeComponent implements OnInit, OnChanges, AfterViewInit, AfterVie
         this.tabContent[this.selectedTab] = '';
         this.triggerQuery = '';
         this.executeTriggered = false;
+    }
+
+    restoreHistoryQuery(query: string) {
+        if (this.selectedTab < 0) {
+            return;
+        }
+        this.tabContent[this.selectedTab] = query;
+        this.editorInstance?.setValue(query);
+    }
+
+    clearHistory() {
+        if (this.demoRows) {
+            this.historyRecords = [];
+            return;
+        }
+
+        this.historyLoading = true;
+        this.historyError = '';
+        this.historyService
+            .clearHistory()
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: () => {
+                    this.historyRecords = [];
+                    this.historyLoading = false;
+                    this.cdr.markForCheck();
+                },
+                error: () => {
+                    this.historyLoading = false;
+                    this.historyError = 'Unable to clear query history. Please try again.';
+                    this.cdr.markForCheck();
+                },
+            });
+    }
+
+    loadHistory() {
+        if (this.demoRows) {
+            return;
+        }
+
+        this.historyLoading = true;
+        this.historyError = '';
+        this.historyService
+            .getHistory()
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: ({ history }) => {
+                    this.historyRecords = (history ?? []).map(mapHistoryRecord);
+                    this.historyLoading = false;
+                    this.cdr.markForCheck();
+                },
+                error: () => {
+                    this.historyRecords = [];
+                    this.historyLoading = false;
+                    this.historyError = 'Query history is unavailable until the backend is running.';
+                    this.cdr.markForCheck();
+                },
+            });
     }
 
     convertToGB(sizeInBytes: number): string {
