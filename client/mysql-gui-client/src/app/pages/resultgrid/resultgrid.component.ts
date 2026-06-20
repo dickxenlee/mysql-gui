@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, SimpleChanges } from '@angular/core';
+import {
+    ChangeDetectionStrategy,
+    ChangeDetectorRef,
+    Component,
+    EventEmitter,
+    Input,
+    Output,
+    SimpleChanges,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -14,10 +22,12 @@ import { FilterRowsPipe } from '@lib/providers/filter-rows.pipe';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ResultGridComponent {
+    @Output() queryCompleted = new EventEmitter<void>();
     @Input() triggerQuery: string = '';
     @Input() executeTriggered: boolean = false;
     @Input() dbName: string = '';
     @Input() tabId: string = '';
+    @Input() demoRows: any[] | null = null;
 
     tabsData = new Map<string, any>();
     headers: string[] = [];
@@ -37,6 +47,13 @@ export class ResultGridComponent {
     constructor(private dbService: BackendService, private cdr: ChangeDetectorRef) {}
 
     ngOnChanges(changes: SimpleChanges) {
+        if (changes['demoRows'] && this.demoRows) {
+            this.setData(this.demoRows);
+            this.totalRows = this.demoRows.length;
+            this.totalPages = 1;
+            this.tabsData.set(this.tabId || 'frontend-ux-demo', [{ rows: this.demoRows, totalRows: this.demoRows.length }]);
+            return;
+        }
         if (changes['triggerQuery'] || changes['dbName'] || changes['tabId']) {
             if (this.dbName != '' && this.triggerQuery != '') {
                 this.currentPage = 1;
@@ -94,6 +111,7 @@ export class ResultGridComponent {
                     this.totalPages = 1;
                 }
                 this.isLoading = false;
+                this.queryCompleted.emit();
                 this.cdr.markForCheck();
             },
             (error) => {
@@ -102,6 +120,7 @@ export class ResultGridComponent {
                 this.isLoading = false;
                 this.rows = [];
                 this.headers = [];
+                this.queryCompleted.emit();
                 this.cdr.markForCheck();
             },
         );
@@ -156,5 +175,40 @@ export class ResultGridComponent {
         this.filterText = '';
         this.appliedFilter = '';
         this.cdr.markForCheck();
+    }
+
+    // Export the currently displayed rows as a JSON file (client-side only).
+    exportJSON() {
+        if (this.rows.length === 0) return;
+        const content = JSON.stringify(this.rows, null, 2);
+        this.downloadFile(content, 'application/json', 'json');
+    }
+
+    // Export the currently displayed rows as a CSV file (client-side only).
+    exportCSV() {
+        if (this.rows.length === 0) return;
+        const headerLine = this.headers.map((h) => this.escapeCsv(h)).join(',');
+        const rowLines = this.rows.map((row) => this.headers.map((h) => this.escapeCsv(row[h])).join(','));
+        const content = [headerLine, ...rowLines].join('\r\n');
+        this.downloadFile(content, 'text/csv', 'csv');
+    }
+
+    // Quote a CSV value and escape embedded quotes so commas/quotes/newlines
+    // in the data cannot break the CSV structure (proposal Risk #4).
+    private escapeCsv(value: any): string {
+        if (value === null || value === undefined) return '';
+        const str = String(value);
+        return `"${str.replace(/"/g, '""')}"`;
+    }
+
+    // Turn a string into a Blob and trigger a native browser download.
+    private downloadFile(content: string, mimeType: string, extension: string) {
+        const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `query-result-${Date.now()}.${extension}`;
+        link.click();
+        URL.revokeObjectURL(url);
     }
 }

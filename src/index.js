@@ -5,6 +5,7 @@ const DBConnector = require("./config/dbConnector");
 const authMiddleware = require("./middleware/authentication");
 const dbRouter = require("./routes/dbRoutes");
 const langchainRouter = require("./routes/langchainRoutes");
+const historyRouter = require("./routes/historyRoutes");
 const gZipper = require("connect-gzip-static");
 const bodyParser = require("body-parser");
 
@@ -24,6 +25,7 @@ app.use(bodyParser.json({ limit: process.env.BODY_SIZE || "50mb" }));
 
 app.use("/api/mysql/", dbRouter);
 app.use("/api/mysql/openai", langchainRouter);
+app.use("/api/mysql/", historyRouter);
 
 app.get("/", (req, res) =>
   res.sendFile(__dirname + "/public/mysql-gui-client/index.html")

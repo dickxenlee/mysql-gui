@@ -31,6 +31,7 @@ export class SideBarComponent implements OnInit {
     filterText: string = '';
     isLoading: boolean = false;
     isRefreshing: boolean = true;
+    loadError: string = '';
 
     constructor(private dbService: BackendService, private cdr: ChangeDetectorRef) {}
 
@@ -46,6 +47,7 @@ export class SideBarComponent implements OnInit {
 
     getDatabases() {
         this.isLoading = true;
+        this.loadError = '';
 
         this.dbService
             .getDatabases()
@@ -59,6 +61,7 @@ export class SideBarComponent implements OnInit {
                 },
                 (error) => {
                     console.error('Error fetching databases', error);
+                    this.loadError = 'Backend unavailable. Start the server or use Frontend UX preview.';
                 },
             )
             .add(() => {
